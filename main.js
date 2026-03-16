@@ -16,15 +16,13 @@ const app = express();
 
 // ── CORS ────────────────────────────────────────────────────────
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'https://range-manager-demo.vercel.app',
-  process.env.CORS_ORIGIN,
+  process.env.CORS_ORIGIN || 'https://range-manager-demo.vercel.app',
   'http://localhost:3000',
   'http://localhost:5173',
-].filter(Boolean);
+];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // 同一オリジン（curlなど origin なし）は許可
     if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error(`CORS: ${origin} は許可されていません`));
   },
@@ -62,11 +60,5 @@ app.use((req, res) => res.status(404).json({ success: false, error: `${req.metho
 
 // ── エラーハンドラ ───────────────────────────────────────────────
 app.use(errorHandler);
-
-// ── ローカル起動（Vercel では実行されない） ──────────────────────
-if (require.main === module) {
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => console.log(`RangeManager Cloud running on http://localhost:${PORT}`));
-}
 
 module.exports = app;

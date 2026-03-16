@@ -26,7 +26,7 @@ cp .env.example .env
 | `GEMINI_API_KEY` | Google AI Studio で取得 |
 | `DATABASE_URL` | Supabase → Project Settings → Database → Connection string (Transaction pooler) |
 | `SECRET_KEY` | JWT署名キー（32文字以上のランダム文字列） |
-| `FRONTEND_URL` | CORS許可するフロントエンドURL |
+| `CORS_ORIGIN` | CORS許可するフロントエンドURL |
 
 ### 3. Supabase スキーマ作成
 
@@ -68,7 +68,7 @@ Vercel プロジェクト → Settings → Environment Variables に以下を追
 GEMINI_API_KEY=...
 DATABASE_URL=...
 SECRET_KEY=...
-FRONTEND_URL=https://range-manager-demo.vercel.app
+CORS_ORIGIN=https://range-manager-demo.vercel.app
 NODE_ENV=production
 ```
 
@@ -159,7 +159,7 @@ curl -X POST https://your-app.vercel.app/birthday/run \
 | GET | `/bays/availability` | 全プラン | 打席空き確認 |
 | GET/POST | `/bays/` | 全プラン | 打席予約 |
 | PUT | `/bays/:id` | 全プラン | 予約ステータス変更 |
-| POST | `/birthday/run` | Cron/手動 | 誕生日送信 |
+| GET/POST | `/birthday/run` | Cron/手動 | 誕生日送信 |
 
 ---
 

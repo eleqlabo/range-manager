@@ -1,27 +1,25 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const { query } = require('../database');
-const { requireAuth } = require('../middlewares/auth');
-const { ok, fail } = require('../utils/response');
+const { SECRET_KEY } = require('../middlewares/auth');
+const { ok } = require('../utils/response');
 const { generateBirthdayMessage } = require('../agents/generator');
 
 /**
- * POST /birthday/run
- * - Vercel Cron Jobs から呼ばれる場合: x-vercel-cron: 1 ヘッダー付き（全テナント対象）
- * - 手動実行の場合: Bearer JWT 必須（当該テナントのみ）
+ * 誕生日送信の共通処理
+ * - Vercel Cron (x-vercel-cron: 1) → 全テナント対象
+ * - 手動実行 (Bearer JWT) → 当該テナントのみ
  */
-router.post('/run', async (req, res, next) => {
+async function runBirthday(req, res, next) {
   try {
     const isCron = req.headers['x-vercel-cron'] === '1';
 
     if (!isCron) {
-      // 手動実行: JWT認証
       const auth = req.headers.authorization;
       if (!auth?.startsWith('Bearer ')) {
         return res.status(401).json({ success: false, error: '認証が必要です' });
       }
-      const jwt = require('jsonwebtoken');
-      const { SECRET_KEY } = require('../middlewares/auth');
       try {
         req.tenant = jwt.verify(auth.slice(7), SECRET_KEY);
       } catch {
@@ -36,7 +34,6 @@ router.post('/run', async (req, res, next) => {
 
     let membersResult;
     if (isCron) {
-      // Cron: 全テナントの誕生日対象者
       membersResult = await query(
         `SELECT m.*, t.name AS facility_name
          FROM rangemanager.members m
@@ -45,7 +42,6 @@ router.post('/run', async (req, res, next) => {
         [mmdd]
       );
     } else {
-      // 手動: 当該テナントのみ
       membersResult = await query(
         `SELECT m.*, $2::text AS facility_name
          FROM rangemanager.members m
@@ -73,6 +69,11 @@ router.post('/run', async (req, res, next) => {
 
     return ok(res, { date: mmdd, processed: results.length, results });
   } catch (err) { next(err); }
-});
+}
+
+// Vercel Cron Jobs は GET で叩く
+router.get('/run', runBirthday);
+// 手動実行・テスト用に POST も残す
+router.post('/run', runBirthday);
 
 module.exports = router;

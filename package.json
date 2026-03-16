@@ -4,8 +4,8 @@
   "description": "RangeManager Cloud - ゴルフ練習場向けSaaS バックエンド",
   "main": "main.js",
   "scripts": {
-    "dev": "node -r dotenv/config main.js",
-    "start": "node main.js"
+    "dev": "node server.js",
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
