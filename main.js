@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const { errorHandler } = require('./middlewares/errorHandler');
 
 const authRouter      = require('./routers/auth');
 const membersRouter   = require('./routers/members');
@@ -13,16 +14,40 @@ const birthdayRouter  = require('./routers/birthday');
 
 const app = express();
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://range-manager-demo.vercel.app';
+// ── CORS ────────────────────────────────────────────────────────
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'https://range-manager-demo.vercel.app',
+  process.env.CORS_ORIGIN,
+  'http://localhost:3000',
+  'http://localhost:5173',
+].filter(Boolean);
 
 app.use(cors({
-  origin: [FRONTEND_URL, 'http://localhost:3000', 'http://localhost:5173'],
+  origin: (origin, callback) => {
+    // 同一オリジン（curlなど origin なし）は許可
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: ${origin} は許可されていません`));
+  },
   credentials: true,
 }));
+
 app.use(express.json());
 
-app.get('/health', (req, res) => res.json({ status: 'ok', service: 'RangeManager Cloud' }));
+// ── ヘルスチェック ───────────────────────────────────────────────
+app.get('/', (req, res) => res.json({
+  service: 'RangeManager Cloud API',
+  status: 'ok',
+  timestamp: new Date().toISOString(),
+  environment: process.env.NODE_ENV || 'development',
+}));
 
+app.get('/health', (req, res) => res.json({
+  status: 'ok',
+  timestamp: new Date().toISOString(),
+  environment: process.env.NODE_ENV || 'development',
+}));
+
+// ── ルーター ─────────────────────────────────────────────────────
 app.use('/auth',      authRouter);
 app.use('/members',   membersRouter);
 app.use('/reviews',   reviewsRouter);
@@ -32,14 +57,16 @@ app.use('/lessons',   lessonsRouter);
 app.use('/bays',      baysRouter);
 app.use('/birthday',  birthdayRouter);
 
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ error: err.message || '内部エラーが発生しました' });
-});
+// ── 404 ─────────────────────────────────────────────────────────
+app.use((req, res) => res.status(404).json({ success: false, error: `${req.method} ${req.path} は存在しません` }));
 
-const PORT = process.env.PORT || 3000;
+// ── エラーハンドラ ───────────────────────────────────────────────
+app.use(errorHandler);
+
+// ── ローカル起動（Vercel では実行されない） ──────────────────────
 if (require.main === module) {
-  app.listen(PORT, () => console.log(`RangeManager Cloud running on port ${PORT}`));
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`RangeManager Cloud running on http://localhost:${PORT}`));
 }
 
 module.exports = app;

@@ -8,39 +8,53 @@ const {
 } = require('./prompts');
 
 let genAI;
+
 function getClient() {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY が設定されていません');
+  }
   if (!genAI) {
     genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   }
   return genAI;
 }
 
+/**
+ * Gemini API 呼び出し（通常応答）
+ * @param {string|undefined} systemInstruction - undefined可（空文字は渡さない）
+ * @param {string} prompt
+ */
 async function callGemini(systemInstruction, prompt, maxRetries = 3) {
+  const modelConfig = { model: 'gemini-2.0-flash' };
+  if (systemInstruction) modelConfig.systemInstruction = systemInstruction;
+
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const model = getClient().getGenerativeModel({
-        model: 'gemini-2.0-flash',
-        systemInstruction,
-      });
+      const model = getClient().getGenerativeModel(modelConfig);
       const result = await model.generateContent(prompt);
       return result.response.text();
     } catch (err) {
       const isRateLimit = err.status === 429 || err.message?.includes('RESOURCE_EXHAUSTED');
       if (isRateLimit && attempt < maxRetries - 1) {
-        await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 2000));
+        const wait = Math.pow(2, attempt) * 2000;
+        console.warn(`[Gemini] レート制限。${wait}ms 後にリトライ (${attempt + 1}/${maxRetries})`);
+        await new Promise(r => setTimeout(r, wait));
         continue;
       }
+      console.error('[Gemini] API エラー:', err.message);
       throw err;
     }
   }
 }
 
-// ストリーミング版（SSE用）
+/**
+ * Gemini API ストリーミング呼び出し（SSE用）
+ */
 async function* callGeminiStream(systemInstruction, prompt) {
-  const model = getClient().getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    systemInstruction,
-  });
+  const modelConfig = { model: 'gemini-2.0-flash' };
+  if (systemInstruction) modelConfig.systemInstruction = systemInstruction;
+
+  const model = getClient().getGenerativeModel(modelConfig);
   const result = await model.generateContentStream(prompt);
   for await (const chunk of result.stream) {
     const text = chunk.text();
@@ -51,6 +65,8 @@ async function* callGeminiStream(systemInstruction, prompt) {
 function fill(template, vars) {
   return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
 }
+
+// ── 公開関数 ────────────────────────────────────────────────────
 
 async function generateReviewReply(facilityName, rating, content) {
   return callGemini(
@@ -88,8 +104,9 @@ async function generateLessonReply(facilityName, memberName, datetime, instructo
 }
 
 async function generateBirthdayMessage(facilityName, memberName, rank, coupon = '') {
+  // systemInstruction なし（undefined で渡す）
   return callGemini(
-    '',
+    undefined,
     fill(BIRTHDAY_MESSAGE_PROMPT, { facility_name: facilityName, member_name: memberName, rank, coupon })
   );
 }
