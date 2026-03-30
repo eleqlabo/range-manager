@@ -93,6 +93,24 @@ CREATE TABLE IF NOT EXISTS rangemanager.lessons (
   CONSTRAINT lesson_end_after_start CHECK (end_time > start_time)
 );
 
+-- ── キャンペーン ─────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS rangemanager.campaigns (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id      UUID NOT NULL REFERENCES rangemanager.tenants(id) ON DELETE CASCADE,
+  title          TEXT NOT NULL,
+  campaign_type  TEXT NOT NULL DEFAULT 'seasonal',
+  catchcopy      TEXT,
+  content        TEXT NOT NULL,
+  target_segment TEXT,
+  period         TEXT,
+  status         TEXT NOT NULL DEFAULT 'draft'
+                   CHECK (status IN ('draft','active','ended')),
+  start_date     DATE,
+  end_date       DATE,
+  created_at     TIMESTAMPTZ DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ── インデックス ──────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_members_tenant    ON rangemanager.members(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_members_birthday  ON rangemanager.members(birthday);
@@ -100,6 +118,10 @@ CREATE INDEX IF NOT EXISTS idx_reviews_tenant    ON rangemanager.reviews(tenant_
 CREATE INDEX IF NOT EXISTS idx_msglogs_tenant    ON rangemanager.message_logs(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_bays_tenant_time  ON rangemanager.bay_reservations(tenant_id, start_time);
 CREATE INDEX IF NOT EXISTS idx_lessons_tenant    ON rangemanager.lessons(tenant_id, start_time);
+CREATE INDEX IF NOT EXISTS idx_campaigns_tenant  ON rangemanager.campaigns(tenant_id, created_at);
+
+-- 既存DBへのマイグレーション
+ALTER TABLE rangemanager.members ADD COLUMN IF NOT EXISTS line_user_id TEXT;
 
 -- ── デモデータ ────────────────────────────────────────────────────
 -- パスワード: demo1234  (bcrypt hash, cost=10)
