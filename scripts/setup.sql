@@ -26,10 +26,15 @@ CREATE TABLE IF NOT EXISTS rangemanager.members (
   rank              TEXT DEFAULT 'NORMAL'
                       CHECK (rank IN ('NORMAL','SILVER','GOLD','PLATINUM')),
   membership_number TEXT,
+  line_user_id      TEXT,                    -- LINE Messaging API 送信用
   notes             TEXT,
   created_at        TIMESTAMPTZ DEFAULT NOW(),
   updated_at        TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 既存テーブルへのマイグレーション（既にテーブルが存在する場合）
+ALTER TABLE rangemanager.members
+  ADD COLUMN IF NOT EXISTS line_user_id TEXT;
 
 -- ── 口コミ ───────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS rangemanager.reviews (

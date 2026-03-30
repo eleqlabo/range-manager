@@ -1,10 +1,50 @@
 const express = require('express');
 const router = express.Router();
+const https = require('https');
 const jwt = require('jsonwebtoken');
 const { query } = require('../database');
 const { SECRET_KEY } = require('../middlewares/auth');
 const { ok } = require('../utils/response');
 const { generateBirthdayMessage } = require('../agents/generator');
+
+/**
+ * LINE push メッセージ送信
+ * @param {string} lineUserId - 送信先 LINE user ID
+ * @param {string} text - 送信テキスト
+ * @returns {Promise<{ok: boolean, status: number, body: string}>}
+ */
+async function sendLinePush(lineUserId, text) {
+  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  if (!token) {
+    return { ok: false, status: 0, body: 'LINE_CHANNEL_ACCESS_TOKEN が未設定' };
+  }
+  const payload = JSON.stringify({
+    to: lineUserId,
+    messages: [{ type: 'text', text }],
+  });
+  return new Promise((resolve) => {
+    const req = https.request(
+      {
+        hostname: 'api.line.me',
+        path: '/v2/bot/message/push',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Content-Length': Buffer.byteLength(payload),
+        },
+      },
+      (res) => {
+        let body = '';
+        res.on('data', (chunk) => { body += chunk; });
+        res.on('end', () => resolve({ ok: res.statusCode === 200, status: res.statusCode, body }));
+      }
+    );
+    req.on('error', (err) => resolve({ ok: false, status: 0, body: err.message }));
+    req.write(payload);
+    req.end();
+  });
+}
 
 /**
  * 誕生日送信の共通処理
@@ -59,10 +99,22 @@ async function runBirthday(req, res, next) {
           member.rank || 'NORMAL',
           ''
         );
-        // TODO: LINE送信実装（LINE_CHANNEL_ACCESS_TOKEN使用）
-        results.push({ member_id: member.id, name: member.name, status: 'generated', message });
+
+        if (!member.line_user_id) {
+          // LINE user ID 未登録 → 生成のみ
+          results.push({ member_id: member.id, name: member.name, status: 'skipped', reason: 'line_user_id未登録', message });
+        } else {
+          const lineResult = await sendLinePush(member.line_user_id, message);
+          if (lineResult.ok) {
+            results.push({ member_id: member.id, name: member.name, status: 'sent', message });
+            console.log(`[Birthday] LINE送信成功: ${member.name} (${member.line_user_id})`);
+          } else {
+            results.push({ member_id: member.id, name: member.name, status: 'line_error', line_status: lineResult.status, error: lineResult.body });
+            console.error(`[Birthday] LINE送信失敗: ${member.name} status=${lineResult.status} body=${lineResult.body}`);
+          }
+        }
       } catch (e) {
-        console.error(`[Birthday] ${member.name} のメッセージ生成失敗:`, e.message);
+        console.error(`[Birthday] ${member.name} の処理失敗:`, e.message);
         results.push({ member_id: member.id, name: member.name, status: 'error', error: e.message });
       }
     }

@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { query } = require('../database');
 const { requireAuth } = require('../middlewares/auth');
 const { ok, created, fail, notFound } = require('../utils/response');
+const { checkMemberLimit } = require('../utils/plan_guard');
 
 router.use(requireAuth);
 
@@ -45,14 +46,23 @@ router.get('/:id', async (req, res, next) => {
 // 新規登録
 router.post('/', async (req, res, next) => {
   try {
-    const { name, email, phone, birthday, rank = 'NORMAL', membership_number, notes } = req.body;
+    const { name, email, phone, birthday, rank = 'NORMAL', membership_number, line_user_id, notes } = req.body;
     if (!name) return fail(res, 'name は必須です');
+
+    // 会員数上限チェック
+    const countResult = await query(
+      'SELECT COUNT(*) FROM rangemanager.members WHERE tenant_id=$1',
+      [req.tenant.id]
+    );
+    checkMemberLimit(req.tenant.plan, parseInt(countResult.rows[0].count));
+
     const id = uuidv4();
     const result = await query(
       `INSERT INTO rangemanager.members
-         (id, tenant_id, name, email, phone, birthday, rank, membership_number, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-      [id, req.tenant.id, name, email || null, phone || null, birthday || null, rank, membership_number || null, notes || null]
+         (id, tenant_id, name, email, phone, birthday, rank, membership_number, line_user_id, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [id, req.tenant.id, name, email || null, phone || null, birthday || null, rank,
+       membership_number || null, line_user_id || null, notes || null]
     );
     return created(res, result.rows[0]);
   } catch (err) { next(err); }
@@ -61,15 +71,16 @@ router.post('/', async (req, res, next) => {
 // 更新
 router.put('/:id', async (req, res, next) => {
   try {
-    const { name, email, phone, birthday, rank, membership_number, notes } = req.body;
+    const { name, email, phone, birthday, rank, membership_number, line_user_id, notes } = req.body;
     if (!name) return fail(res, 'name は必須です');
     const result = await query(
       `UPDATE rangemanager.members SET
          name=$1, email=$2, phone=$3, birthday=$4, rank=$5,
-         membership_number=$6, notes=$7, updated_at=NOW()
-       WHERE id=$8 AND tenant_id=$9 RETURNING *`,
+         membership_number=$6, line_user_id=$7, notes=$8, updated_at=NOW()
+       WHERE id=$9 AND tenant_id=$10 RETURNING *`,
       [name, email || null, phone || null, birthday || null, rank || 'NORMAL',
-       membership_number || null, notes || null, req.params.id, req.tenant.id]
+       membership_number || null, line_user_id || null, notes || null,
+       req.params.id, req.tenant.id]
     );
     if (!result.rows[0]) return notFound(res, '会員が見つかりません');
     return ok(res, result.rows[0]);
