@@ -14,9 +14,9 @@ const { generateBirthdayMessage } = require('../agents/generator');
  * @returns {Promise<{ok: boolean, status: number, body: string}>}
  */
 async function sendLinePush(lineUserId, text) {
-  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  const token = process.env.RANGE_LINE_CHANNEL_ACCESS_TOKEN;
   if (!token) {
-    return { ok: false, status: 0, body: 'LINE_CHANNEL_ACCESS_TOKEN が未設定' };
+    return { ok: false, status: 0, body: 'RANGE_LINE_CHANNEL_ACCESS_TOKEN が未設定' };
   }
   const payload = JSON.stringify({
     to: lineUserId,

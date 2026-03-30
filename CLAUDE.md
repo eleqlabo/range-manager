@@ -120,8 +120,9 @@ range-manager/
 | `DATABASE_URL` | Supabase PostgreSQL 接続文字列 | **必須** |
 | `SUPABASE_URL` | Supabase プロジェクト URL | 参照用 |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role キー | RLSバイパス・通常APIでの使用禁止 |
-| `LINE_CHANNEL_ACCESS_TOKEN` | LINE Messaging API トークン | birthday.js で使用 |
-| `LINE_CHANNEL_SECRET` | LINE チャンネルシークレット | |
+| `RANGE_LINE_CHANNEL_ACCESS_TOKEN` | LINE Messaging API トークン | birthday.js で使用 |
+| `RANGE_LINE_CHANNEL_SECRET` | LINE チャンネルシークレット | |
+| `ENV` | 環境識別 | `production` / `staging` / `development` |
 | `SECRET_KEY` | JWT 署名キー | **本番は32文字以上のランダム値** |
 | `FRONTEND_URL` | CORS 許可URL | `https://range-manager-demo.vercel.app` |
 
