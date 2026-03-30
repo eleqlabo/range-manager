@@ -119,7 +119,7 @@ range-manager/
 | `GEMINI_API_KEY` | Gemini API キー | **必須** |
 | `DATABASE_URL` | Supabase PostgreSQL 接続文字列 | **必須** |
 | `SUPABASE_URL` | Supabase プロジェクト URL | 参照用 |
-| `SUPABASE_KEY` | Supabase anon キー | 参照用 |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role キー | RLSバイパス・通常APIでの使用禁止 |
 | `LINE_CHANNEL_ACCESS_TOKEN` | LINE Messaging API トークン | birthday.js で使用 |
 | `LINE_CHANNEL_SECRET` | LINE チャンネルシークレット | |
 | `SECRET_KEY` | JWT 署名キー | **本番は32文字以上のランダム値** |
